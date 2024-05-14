@@ -43,13 +43,13 @@ class TestKnightAttack(unittest.TestCase):
     def test_3(self):
         start_time = time.time()
         try:
-            self.assertEqual(self.knight_attack(8, 0, 3, 4, 2), 3, "2 Moves are Required")
+            self.assertEqual(self.knight_attack(8, 0, 3, 4, 2), 3, "3 Moves are Required")
         finally:
             self.duration = time.time() - start_time
     def test_4(self):
         start_time = time.time()
         try:
-            self.assertEqual(self.knight_attack(8, 0, 3, 5, 2), 4, "2 Moves are Required")
+            self.assertEqual(self.knight_attack(8, 0, 3, 5, 2), 4, "4 Moves are Required")
         finally:
             self.duration = time.time() - start_time
     def test_5(self):
@@ -138,6 +138,15 @@ def update_score(user_id, question, score):
         )
         print("New score added.")
 
+def clear_globals_and_locals():
+    keys_to_keep = {
+        '__builtins__', 'request', 'jsonify', 'app', 'CORS', 'boto3', 'Decimal', 'os', 'unittest', 'threading', 'queue',
+        'execute_user_code', 'run_test', 'update_score', 'TestKnightAttack', 'clear_globals_and_locals', '__name__',
+        'aws_access_key_id', 'aws_secret_access_key', 'time'
+    }
+    keys_to_clear = set(globals().keys()) - keys_to_keep
+    for key in keys_to_clear:
+        del globals()[key]
 
 
 @app.route('/runCode', methods=['POST', 'GET'])
@@ -168,6 +177,7 @@ def runCode():
             if test_thread.is_alive():
                 test_thread.join(timeout=0)
                 results = {'passed': False, 'results': ["One or more tests timed out. Re-check your code"]}
+                clear_globals_and_locals()
                 return jsonify(results)
 
             result = test_queue.get()
@@ -193,13 +203,39 @@ def runCode():
 
     else:
         results = {'passed': False, 'results': ["Code did not compile"]}
+        clear_globals_and_locals()
         return jsonify(results)
 
     print(results)
 
     score = correct / len(results['results'])
     update_score(user, "KnightAttack", score)
+    clear_globals_and_locals()
     return jsonify(results)
+
+@app.route('/getHighScore', methods=['POST', 'GET'])
+def getHighScore():
+    user = request.json['user']
+    question = 'KnightAttack'
+
+    dynamodb = boto3.resource('dynamodb', region_name='us-west-1', aws_access_key_id=aws_access_key_id,
+                              aws_secret_access_key=aws_secret_access_key)
+    table = dynamodb.Table('take-home-final')
+
+    response = table.scan(
+        FilterExpression=boto3.dynamodb.conditions.Attr('userID').eq(user) & boto3.dynamodb.conditions.Attr('questionName').eq(question)
+    )
+
+    items = response.get('Items', [])
+
+    if not items:
+        return None
+
+
+    highest_score = max(item['Score'] for item in items)
+    print(highest_score)
+    return jsonify(highest_score)
+
 
 
 
