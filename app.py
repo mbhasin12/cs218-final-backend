@@ -13,7 +13,7 @@ import os
 
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://cs218-final-frontend.vercel.app"]}})
 
 import boto3
 from decimal import Decimal
@@ -96,7 +96,7 @@ def run_test(test_queue, test):
     test_queue.put(result)
 
 def update_score(user_id, question, score):
-    dynamodb = boto3.resource('dynamodb', region_name='us-west-1')
+    dynamodb = boto3.resource('dynamodb', region_name='us-west-1',aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
     table = dynamodb.Table('take-home-final')
     new_score = score * 100
     new_score = Decimal(f"{new_score:.2f}")
@@ -137,6 +137,8 @@ def update_score(user_id, question, score):
             }
         )
         print("New score added.")
+
+
 
 @app.route('/runCode', methods=['POST', 'GET'])
 def runCode():
